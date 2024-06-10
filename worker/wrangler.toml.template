@@ -1,4 +1,4 @@
-name = "tmpmail"
+name = "cloudflare_temp_email"
 main = "src/worker.ts"
 compatibility_date = "2023-12-01"
 node_compat = true
@@ -27,7 +27,7 @@ PREFIX = "tmp"
 # ADMIN_PASSWORDS = ["123", "456"]
 # ADMIN CONTACT, CAN BE ANY STRING
 # ADMIN_CONTACT = "xx@xx.xxx"
-DOMAINS = ["tmpmail.662219.xyz" , "tmpmail.ynsc.tk"]
+DOMAINS = ["xxx.xxx1" , "xxx.xxx2"]
 JWT_SECRET = "xxx"
 BLACK_LIST = ""
 # Allow users to create email addresses
@@ -55,8 +55,8 @@ ENABLE_AUTO_REPLY = false
 
 [[d1_databases]]
 binding = "DB"
-database_name = "tmpmail"
-database_id = "35abbea5-f202-46fd-a186-cab1c7badb38"
+database_name = "xxx"
+database_id = "xxx"
 
 # kv config for send email verification code
 # [[kv_namespaces]]
