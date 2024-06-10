@@ -1,4 +1,4 @@
-name = "cloudflare_temp_email"
+name = "tmpmail"
 main = "src/worker.ts"
 compatibility_date = "2023-12-01"
 node_compat = true
@@ -55,7 +55,7 @@ ENABLE_AUTO_REPLY = false
 
 [[d1_databases]]
 binding = "DB"
-database_name = "tempmail"
+database_name = "tmpmail"
 database_id = "35abbea5-f202-46fd-a186-cab1c7badb38"
 
 # kv config for send email verification code
