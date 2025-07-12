@@ -57,6 +57,7 @@ jobs:
             pnpm run deploy
           else
             output=$(pnpm run deploy 2>&1)
+            echo "$output"
             if [ $? -ne 0 ]; then
                 code=$?
                 echo "Command failed with exit code $code"
