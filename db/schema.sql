@@ -1,15 +1,3 @@
-CREATE TABLE IF NOT EXISTS mails (
-    id INTEGER PRIMARY KEY,
-    message_id TEXT,
-    source TEXT,
-    address TEXT,
-    subject TEXT,
-    message TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_mails_address ON mails(address);
-
 CREATE TABLE IF NOT EXISTS raw_mails (
     id INTEGER PRIMARY KEY,
     message_id TEXT,
@@ -22,7 +10,7 @@ CREATE TABLE IF NOT EXISTS raw_mails (
 CREATE INDEX IF NOT EXISTS idx_raw_mails_address ON raw_mails(address);
 
 CREATE TABLE IF NOT EXISTS address (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -42,15 +30,6 @@ CREATE TABLE IF NOT EXISTS auto_reply_mails (
 );
 
 CREATE INDEX IF NOT EXISTS idx_auto_reply_mails_address ON auto_reply_mails(address);
-
-CREATE TABLE IF NOT EXISTS attachments (
-    id INTEGER PRIMARY KEY,
-    source TEXT,
-    address TEXT,
-    message_id TEXT,
-    data TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
 
 CREATE TABLE IF NOT EXISTS address_sender (
     id INTEGER PRIMARY KEY,
@@ -99,3 +78,28 @@ CREATE TABLE IF NOT EXISTS users_address (
 CREATE INDEX IF NOT EXISTS idx_users_address_user_id ON users_address(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_users_address_address_id ON users_address(address_id);
+
+CREATE TABLE IF NOT EXISTS user_roles (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER UNIQUE NOT NULL,
+    role_text TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
+
+CREATE TABLE IF NOT EXISTS user_passkeys (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    passkey_name TEXT NOT NULL,
+    passkey_id TEXT NOT NULL,
+    passkey TEXT NOT NULL,
+    counter INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_passkeys_user_id ON user_passkeys(user_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_passkeys_user_id_passkey_id ON user_passkeys(user_id, passkey_id);

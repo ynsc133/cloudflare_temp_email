@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { NewLabelOutlined, EmailOutlined } from '@vicons/material'
@@ -15,7 +15,7 @@ const props = defineProps({
     bindUserAddress: {
         type: Function,
         default: async () => { await api.bindUserAddress(); },
-        requried: true
+        required: true
     },
     newAddressPath: {
         type: Function,
@@ -29,11 +29,12 @@ const props = defineProps({
                 }),
             });
         },
-        requried: true
+        required: true
     },
 })
 
 const message = useMessage()
+const notification = useNotification()
 const router = useRouter()
 
 const {
@@ -70,9 +71,10 @@ const { locale, t } = useI18n({
     messages: {
         en: {
             login: 'Login',
+            loginAndBind: 'Login and Bind',
             pleaseGetNewEmail: 'Please login or click "Get New Email" button to get a new email address',
             getNewEmail: 'Create New Email',
-            getNewEmailTip1: 'Please input the email you want to use. only allow ., a-z, A-Z and 0-9',
+            getNewEmailTip1: 'Please input the email you want to use. only allow: ',
             getNewEmailTip2: 'Levaing it blank will generate a random email address.',
             getNewEmailTip3: 'You can choose a domain from the dropdown list.',
             credential: 'Email Address Credential',
@@ -85,9 +87,10 @@ const { locale, t } = useI18n({
         },
         zh: {
             login: '登录',
+            loginAndBind: '登录并绑定',
             pleaseGetNewEmail: '请"登录"或点击 "注册新邮箱" 按钮来获取一个新的邮箱地址',
             getNewEmail: '创建新邮箱',
-            getNewEmailTip1: '请输入你想要使用的邮箱地址, 只允许 ., a-z, A-Z, 0-9',
+            getNewEmailTip1: '请输入你想要使用的邮箱地址, 只允许: ',
             getNewEmailTip2: '留空将会生成一个随机的邮箱地址。',
             getNewEmailTip3: '你可以从下拉列表中选择一个域名。',
             credential: '邮箱地址凭据',
@@ -101,6 +104,25 @@ const { locale, t } = useI18n({
     }
 });
 
+const loginAndBindTag = computed(() => {
+    if (userSettings.value.user_email) {
+        return t('loginAndBind')
+    }
+    return t('login')
+})
+
+const addressRegex = computed(() => {
+    try {
+        if (openSettings.value.addressRegex) {
+            return new RegExp(openSettings.value.addressRegex, 'g');
+        }
+    } catch (error) {
+        console.error(error);
+        message.error(`Invalid addressRegex: ${openSettings.value.addressRegex}`);
+    }
+    return /[^a-z0-9]/g;
+});
+
 const generateNameLoading = ref(false);
 const generateName = async () => {
     try {
@@ -110,8 +132,12 @@ const generateName = async () => {
             .split('@')[0]
             .replace(/\s+/g, '.')
             .replace(/\.{2,}/g, '.')
-            .replace(/[^a-zA-Z0-9.]/g, '')
+            .replace(addressRegex.value, '')
             .toLowerCase();
+        // support maxAddressLen
+        if (emailName.value.length > openSettings.value.maxAddressLen) {
+            emailName.value = emailName.value.slice(0, openSettings.value.maxAddressLen);
+        }
     } catch (error) {
         message.error(error.message || "error");
     } finally {
@@ -140,21 +166,58 @@ const newEmail = async () => {
     }
 };
 
+const addressPrefix = computed(() => {
+    // if user has role, return role prefix
+    if (userSettings.value?.user_role) {
+        return userSettings.value.user_role.prefix || "";
+    }
+    // if user has no role, return default prefix
+    return openSettings.value.prefix;
+});
+
+const domainsOptions = computed(() => {
+    // if user has role, return role domains
+    if (userSettings.value.user_role) {
+        const allDomains = userSettings.value.user_role.domains;
+        if (!allDomains) return openSettings.value.domains;
+        return openSettings.value.domains.filter((domain) => {
+            return allDomains.includes(domain.value);
+        });
+    }
+    // if user has no role, return default domains
+    if (!openSettings.value.defaultDomains) {
+        return openSettings.value.domains;
+    }
+    // if user has no role and no default domains, return all domains
+    return openSettings.value.domains.filter((domain) => {
+        return openSettings.value.defaultDomains.includes(domain.value);
+    });
+});
+
+const showNewAddressTab = computed(() => {
+    if (openSettings.value.disableAnonymousUserCreateEmail
+        && !userSettings.value.user_email
+    ) {
+        return false;
+    }
+    return openSettings.value.enableUserCreateEmail;
+});
+
 onMounted(async () => {
     if (!openSettings.value.domains || openSettings.value.domains.length === 0) {
-        await api.getOpenSettings();
+        await api.getOpenSettings(message, notification);
     }
-    emailDomain.value = openSettings.value.domains ? openSettings.value.domains[0]?.value : "";
+    emailDomain.value = domainsOptions.value ? domainsOptions.value[0]?.value : "";
 });
 </script>
 
 <template>
     <div>
-        <n-alert v-if="userSettings.user_email" :show-icon="false" closable>
+        <n-alert v-if="userSettings.user_email" :show-icon="false" :bordered="false" closable>
             <span>{{ t('bindUserInfo') }}</span>
         </n-alert>
-        <n-tabs v-model:value="tabValue" size="large" justify-content="space-evenly">
-            <n-tab-pane name="signin" :tab="t('login')">
+        <n-tabs v-if="openSettings.fetched" v-model:value="tabValue" size="large" justify-content="space-evenly">
+            <n-tab-pane name="signin" :tab="loginAndBindTag">
                 <n-form>
                     <n-form-item-row :label="t('credential')" required>
                         <n-input v-model:value="credential" type="textarea" :autosize="{ minRows: 3 }" />
@@ -163,10 +226,9 @@ onMounted(async () => {
                         <template #icon>
                             <n-icon :component="EmailOutlined" />
                         </template>
-                        {{ t('login') }}
+                        {{ loginAndBindTag }}
                     </n-button>
-                    <n-button v-if="openSettings.enableUserCreateEmail" @click="tabValue = 'register'" block secondary
-                        strong>
+                    <n-button v-if="showNewAddressTab" @click="tabValue = 'register'" block secondary strong>
                         <template #icon>
                             <n-icon :component="NewLabelOutlined" />
                         </template>
@@ -174,11 +236,11 @@ onMounted(async () => {
                     </n-button>
                 </n-form>
             </n-tab-pane>
-            <n-tab-pane v-if="openSettings.enableUserCreateEmail" name="register" :tab="t('getNewEmail')">
+            <n-tab-pane v-if="showNewAddressTab" name="register" :tab="t('getNewEmail')">
                 <n-spin :show="generateNameLoading">
                     <n-form>
                         <span>
-                            <p>{{ t("getNewEmailTip1") }}</p>
+                            <p>{{ t("getNewEmailTip1") + addressRegex.source }}</p>
                             <p>{{ t("getNewEmailTip2") }}</p>
                             <p>{{ t("getNewEmailTip3") }}</p>
                         </span>
@@ -186,14 +248,14 @@ onMounted(async () => {
                             {{ t('generateName') }}
                         </n-button>
                         <n-input-group>
-                            <n-input-group-label v-if="openSettings.prefix">
-                                {{ openSettings.prefix }}
+                            <n-input-group-label v-if="addressPrefix">
+                                {{ addressPrefix }}
                             </n-input-group-label>
                             <n-input v-model:value="emailName" show-count :minlength="openSettings.minAddressLen"
                                 :maxlength="openSettings.maxAddressLen" />
                             <n-input-group-label>@</n-input-group-label>
                             <n-select v-model:value="emailDomain" :consistent-menu-width="false"
-                                :options="openSettings.domains" />
+                                :options="domainsOptions" />
                         </n-input-group>
                         <Turnstile v-model:value="cfToken" />
                         <n-button type="primary" block secondary strong @click="newEmail" :loading="loading">
@@ -206,7 +268,7 @@ onMounted(async () => {
                 </n-spin>
             </n-tab-pane>
             <n-tab-pane name="help" :tab="t('help')">
-                <n-alert :show-icon="false">
+                <n-alert :show-icon="false" :bordered="false">
                     <span>{{ t('pleaseGetNewEmail') }}</span>
                 </n-alert>
                 <AdminContact />

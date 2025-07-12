@@ -1,3 +1,18 @@
+import type {
+    AuthenticatorTransportFuture,
+    CredentialDeviceType,
+    Base64URLString,
+} from '@simplewebauthn/types';
+
+export type Passkey = {
+    id: Base64URLString;
+    publicKey: string;
+    counter: number;
+    deviceType: CredentialDeviceType;
+    backedUp: boolean;
+    transports?: AuthenticatorTransportFuture[];
+};
+
 export class AdminWebhookSettings {
     allowList: string[];
 
@@ -7,6 +22,8 @@ export class AdminWebhookSettings {
 }
 
 export type WebhookMail = {
+    id: string;
+    url?: string;
     from: string;
     to: string;
     subject: string;
@@ -15,7 +32,7 @@ export type WebhookMail = {
     parsedHtml: string;
 }
 
-export class CleanupSettings {
+export type CleanupSettings = {
 
     enableMailsAutoCleanup: boolean | undefined;
     cleanMailsDays: number;
@@ -23,22 +40,11 @@ export class CleanupSettings {
     cleanUnknowMailsDays: number;
     enableSendBoxAutoCleanup: boolean | undefined;
     cleanSendBoxDays: number;
-
-    constructor(data: CleanupSettings | undefined | null) {
-        const {
-            enableMailsAutoCleanup, cleanMailsDays,
-            enableUnknowMailsAutoCleanup, cleanUnknowMailsDays,
-            enableSendBoxAutoCleanup, cleanSendBoxDays
-        } = data || {};
-        this.enableMailsAutoCleanup = enableMailsAutoCleanup;
-        this.cleanMailsDays = cleanMailsDays || 0;
-        this.enableUnknowMailsAutoCleanup = enableUnknowMailsAutoCleanup;
-        this.cleanUnknowMailsDays = cleanUnknowMailsDays || 0;
-        this.enableSendBoxAutoCleanup = enableSendBoxAutoCleanup;
-        this.cleanSendBoxDays = cleanSendBoxDays || 0;
-    }
+    enableAddressAutoCleanup: boolean | undefined;
+    cleanAddressDays: number;
+    enableInactiveAddressAutoCleanup: boolean | undefined;
+    cleanInactiveAddressDays: number;
 }
-
 
 export class GeoData {
 
@@ -103,4 +109,39 @@ export class UserInfo {
         this.geoData = geoData;
         this.userEmail = userEmail;
     }
+}
+
+export class WebhookSettings {
+    enabled: boolean = false
+    url: string = ''
+    method: string = 'POST'
+    headers: string = JSON.stringify({
+        "Content-Type": "application/json"
+    }, null, 2)
+    body: string = JSON.stringify({
+        "id": "${id}",
+        "url": "${url}",
+        "from": "${from}",
+        "to": "${to}",
+        "subject": "${subject}",
+        "raw": "${raw}",
+        "parsedText": "${parsedText}",
+        "parsedHtml": "${parsedHtml}",
+    }, null, 2)
+}
+
+export type UserOauth2Settings = {
+    name: string;
+    clientID: string;
+    clientSecret: string;
+    authorizationURL: string;
+    accessTokenURL: string;
+    accessTokenFormat: string;
+    userInfoURL: string;
+    redirectURL: string;
+    logoutURL?: string;
+    userEmailKey: string;
+    scope: string;
+    enableMailAllowList?: boolean | undefined;
+    mailAllowList?: string[] | undefined;
 }

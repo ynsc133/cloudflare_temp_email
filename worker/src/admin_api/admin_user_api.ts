@@ -1,10 +1,11 @@
 import { Context } from 'hono';
 
 import { CONSTANTS } from '../constants';
-import { getJsonSetting, saveSetting, checkUserPassword, getDomains } from '../utils';
+import { getJsonSetting, saveSetting, checkUserPassword, getDomains, getUserRoles } from '../utils';
 import { UserSettings, GeoData, UserInfo } from "../models";
 import { handleListQuery } from '../common'
-import { HonoCustomType } from '../types';
+import UserBindAddressModule from '../user_api/bind_address';
+import i18n from '../i18n';
 
 export default {
     getSetting: async (c: Context<HonoCustomType>) => {
@@ -38,18 +39,22 @@ export default {
         const { limit, offset, query } = c.req.query();
         if (query) {
             return await handleListQuery(c,
-                `SELECT u.id, u.user_email, u.created_at, u.updated_at,`
+                `SELECT u.id as id, u.user_email, u.created_at, u.updated_at,`
+                + ` ur.role_text as role_text,`
                 + ` (SELECT COUNT(*) FROM users_address WHERE user_id = u.id) AS address_count`
                 + ` FROM users u`
+                + ` LEFT JOIN user_roles ur ON u.id = ur.user_id`
                 + ` where u.user_email like ?`,
                 `SELECT count(*) as count FROM users where user_email like ?`,
                 [`%${query}%`], limit, offset
             );
         }
         return await handleListQuery(c,
-            `SELECT u.id, u.user_email, u.created_at, u.updated_at,`
+            `SELECT u.id as id, u.user_email, u.created_at, u.updated_at,`
+            + ` ur.role_text as role_text,`
             + ` (SELECT COUNT(*) FROM users_address WHERE user_id = u.id) AS address_count`
-            + ` FROM users u`,
+            + ` FROM users u`
+            + ` LEFT JOIN user_roles ur ON u.id = ur.user_id`,
             `SELECT count(*) as count FROM users`,
             [], limit, offset
         );
@@ -85,7 +90,8 @@ export default {
     },
     deleteUser: async (c: Context<HonoCustomType>) => {
         const { user_id } = c.req.param();
-        if (!user_id) return c.text("Invalid user_id", 400);
+        const msgs = i18n.getMessagesbyContext(c);
+        if (!user_id) return c.text(msgs.UserNotFoundMsg, 400);
         const { success } = await c.env.DB.prepare(
             `DELETE FROM users WHERE id = ?`
         ).bind(user_id).run();
@@ -100,7 +106,8 @@ export default {
     resetPassword: async (c: Context<HonoCustomType>) => {
         const { user_id } = c.req.param();
         const { password } = await c.req.json();
-        if (!user_id) return c.text("Invalid user_id", 400);
+        const msgs = i18n.getMessagesbyContext(c);
+        if (!user_id) return c.text(msgs.UserNotFoundMsg, 400);
         try {
             checkUserPassword(password);
             const { success } = await c.env.DB.prepare(
@@ -113,5 +120,50 @@ export default {
             return c.text(`Failed to reset password: ${(e as Error).message}`, 500)
         }
         return c.json({ success: true });
+    },
+    updateUserRoles: async (c: Context<HonoCustomType>) => {
+        const { user_id, role_text } = await c.req.json();
+        if (!user_id) return c.text("Invalid user_id", 400);
+        if (!role_text) {
+            const { success } = await c.env.DB.prepare(
+                `DELETE FROM user_roles WHERE user_id = ?`
+            ).bind(user_id).run();
+            if (!success) {
+                return c.text("Failed to update user roles", 500)
+            }
+            return c.json({ success: true })
+        }
+        const user_roles = getUserRoles(c);
+        if (!user_roles.find((r) => r.role === role_text)) {
+            return c.text("Invalid role_text", 400)
+        }
+        const { success } = await c.env.DB.prepare(
+            `INSERT INTO user_roles (user_id, role_text)`
+            + ` VALUES (?, ?)`
+            + ` ON CONFLICT(user_id) DO UPDATE SET role_text = ?, updated_at = datetime('now')`
+        ).bind(user_id, role_text, role_text).run();
+        if (!success) {
+            return c.text("Failed to update user roles", 500)
+        }
+        return c.json({ success: true })
+    },
+    bindAddress: async (c: Context<HonoCustomType>) => {
+        const {
+            user_email, address, user_id, address_id
+        } = await c.req.json();
+        const db_user_id = user_id ?? await c.env.DB.prepare(
+            `SELECT id FROM users WHERE user_email = ?`
+        ).bind(user_email).first<number | undefined | null>("id");
+        const db_address_id = address_id ?? await c.env.DB.prepare(
+            `SELECT id FROM address WHERE name = ?`
+        ).bind(address).first<number | undefined | null>("id");
+        return await UserBindAddressModule.bindByID(c, db_user_id, db_address_id);
+    },
+    getBindedAddresses: async (c: Context<HonoCustomType>) => {
+        const { user_id } = c.req.param();
+        const results = await UserBindAddressModule.getBindedAddressesById(c, user_id);
+        return c.json({
+            results: results,
+        });
     },
 }

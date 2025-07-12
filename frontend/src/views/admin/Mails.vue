@@ -6,10 +6,7 @@ import { useGlobalState } from '../../store'
 import { api } from '../../api'
 import MailBox from '../../components/MailBox.vue';
 
-const {
-    adminAuth, showAdminAuth,
-    adminMailTabAddress
-} = useGlobalState()
+const { adminMailTabAddress } = useGlobalState()
 
 const { t } = useI18n({
     messages: {
@@ -29,12 +26,9 @@ const { t } = useI18n({
 const mailBoxKey = ref("")
 const mailKeyword = ref("")
 
-watch([adminMailTabAddress, mailKeyword], () => {
+const queryMail = () => {
     adminMailTabAddress.value = adminMailTabAddress.value.trim();
     mailKeyword.value = mailKeyword.value.trim();
-});
-
-const queryMail = () => {
     mailBoxKey.value = Date.now();
 }
 
@@ -48,24 +42,23 @@ const fetchMailData = async (limit, offset) => {
     );
 }
 
-onMounted(async () => {
-    if (!adminAuth.value) {
-        showAdminAuth.value = true;
-        return;
-    }
-})
+const deleteMail = async (curMailId) => {
+    await api.fetch(`/admin/mails/${curMailId}`, { method: 'DELETE' });
+};
 </script>
 
 <template>
     <div style="margin-top: 10px;">
         <n-input-group>
-            <n-input v-model:value="adminMailTabAddress" :placeholder="t('addressQueryTip')" />
-            <n-input v-model:value="mailKeyword" :placeholder="t('keywordQueryTip')" />
+            <n-input v-model:value="adminMailTabAddress" :placeholder="t('addressQueryTip')"
+                @keydown.enter="queryMail" />
+            <n-input v-model:value="mailKeyword" :placeholder="t('keywordQueryTip')" @keydown.enter="queryMail" />
             <n-button @click="queryMail" type="primary" tertiary>
                 {{ t('query') }}
             </n-button>
         </n-input-group>
         <div style="margin-top: 10px;"></div>
-        <MailBox :key="mailBoxKey" :enableUserDeleteEmail="false" :fetchMailData="fetchMailData" />
+        <MailBox :key="mailBoxKey" :enableUserDeleteEmail="true" :fetchMailData="fetchMailData"
+            :deleteMail="deleteMail" />
     </div>
 </template>

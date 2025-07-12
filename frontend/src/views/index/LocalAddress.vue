@@ -22,7 +22,7 @@ const { t } = useI18n({
             actions: 'Actions',
             changeMailAddress: 'Change Mail Address',
             unbindMailAddress: 'Unbind Mail Address credential',
-            bind: 'Bind',
+            create_or_bind: 'Create or Bind',
             bindAddressSuccess: 'Bind Address Success',
         },
         zh: {
@@ -32,7 +32,7 @@ const { t } = useI18n({
             actions: '操作',
             changeMailAddress: '切换邮箱地址',
             unbindMailAddress: '解绑邮箱地址',
-            bind: '绑定',
+            create_or_bind: '创建或绑定',
             bindAddressSuccess: '绑定地址成功',
         }
     }
@@ -144,14 +144,14 @@ const columns = [
 
 <template>
     <div>
-        <n-alert type="warning" :show-icon="false">
+        <n-alert type="warning" :show-icon="false" :bordered="false">
             <span>{{ t('tip') }}</span>
         </n-alert>
         <n-tabs type="segment" v-model:value="tabValue">
             <n-tab-pane name="address" :tab="t('address')">
-                <n-data-table :columns="columns" :data="data" :bordered="false" />
+                <n-data-table :columns="columns" :data="data" :bordered="false" embedded />
             </n-tab-pane>
-            <n-tab-pane name="bind" :tab="t('bind')">
+            <n-tab-pane name="create_or_bind" :tab="t('create_or_bind')">
                 <Login :bindUserAddress="bindAddress" />
             </n-tab-pane>
         </n-tabs>

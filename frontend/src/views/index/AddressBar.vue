@@ -1,6 +1,6 @@
 <script setup>
 import useClipboard from 'vue-clipboard3'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { Copy, User, ExchangeAlt } from '@vicons/fa'
@@ -19,7 +19,7 @@ const router = useRouter()
 
 const {
     jwt, settings, showAddressCredential, userJwt,
-    isTelegram
+    isTelegram, openSettings
 } = useGlobalState()
 
 const { locale, t } = useI18n({
@@ -32,6 +32,7 @@ const { locale, t } = useI18n({
             copied: 'Copied',
             fetchAddressError: 'Mail address credential is invalid or account not exist, it may be network connection issue, please try again later.',
             addressCredential: 'Mail Address Credential',
+            linkWithAddressCredential: 'Open to auto login email link',
             addressCredentialTip: 'Please copy the Mail Address Credential and you can use it to login to your email account.',
             userLogin: 'User Login',
         },
@@ -43,6 +44,7 @@ const { locale, t } = useI18n({
             copied: '已复制',
             fetchAddressError: '邮箱地址凭证无效或邮箱地址不存在，也可能是网络连接异常，请稍后再尝试。',
             addressCredential: '邮箱地址凭证',
+            linkWithAddressCredential: '打开即可自动登录邮箱的链接',
             addressCredentialTip: '请复制邮箱地址凭证，你可以使用它登录你的邮箱。',
             userLogin: '用户登录',
         }
@@ -52,6 +54,17 @@ const { locale, t } = useI18n({
 const showChangeAddress = ref(false)
 const showTelegramChangeAddress = ref(false)
 const showLocalAddress = ref(false)
+const addressLabel = computed(() => {
+    if (settings.value.address) {
+        const domain = settings.value.address.split('@')[1]
+        const domainLabel = openSettings.value.domains.find(
+            d => d.value === domain
+        )?.label;
+        if (!domainLabel) return settings.value.address;
+        return settings.value.address.replace('@' + domain, `@${domainLabel}`);
+    }
+    return settings.value.address;
+})
 
 const copy = async () => {
     try {
@@ -60,6 +73,10 @@ const copy = async () => {
     } catch (e) {
         message.error(e.message || "error");
     }
+}
+
+const getUrlWithJwt = () => {
+    return `${window.location.origin}/?jwt=${jwt.value}`
 }
 
 const onUserLogin = async () => {
@@ -73,13 +90,13 @@ onMounted(async () => {
 
 <template>
     <div>
-        <n-card v-if="!settings.fetched">
+        <n-card :bordered="false" embedded v-if="!settings.fetched">
             <n-skeleton style="height: 50vh" />
         </n-card>
         <div v-else-if="settings.address">
-            <n-alert type="info" :show-icon="false">
+            <n-alert type="info" :show-icon="false" :bordered="false">
                 <span>
-                    <b>{{ settings.address }}</b>
+                    <b>{{ addressLabel }}</b>
                     <n-button v-if="isTelegram" style="margin-left: 10px" @click="showTelegramChangeAddress = true"
                         size="small" tertiary type="primary">
                         <n-icon :component="ExchangeAlt" /> {{ t('addressManage') }}
@@ -102,8 +119,8 @@ onMounted(async () => {
             <TelegramAddress />
         </div>
         <div v-else class="center">
-            <n-card style="max-width: 600px;">
-                <n-alert v-if="jwt" type="warning" :show-icon="false" closable>
+            <n-card :bordered="false" embedded style="max-width: 600px;">
+                <n-alert v-if="jwt" type="warning" :show-icon="false" :bordered="false" closable>
                     <span>{{ t('fetchAddressError') }}</span>
                 </n-alert>
                 <Login />
@@ -129,8 +146,17 @@ onMounted(async () => {
             <span>
                 <p>{{ t("addressCredentialTip") }}</p>
             </span>
-            <n-card>
+            <n-card embedded>
                 <b>{{ jwt }}</b>
+            </n-card>
+            <n-card embedded>
+                <n-collapse>
+                    <n-collapse-item :title='t("linkWithAddressCredential")'>
+                        <n-card embedded>
+                            <b>{{ getUrlWithJwt() }}</b>
+                        </n-card>
+                    </n-collapse-item>
+                </n-collapse>
             </n-card>
         </n-modal>
     </div>

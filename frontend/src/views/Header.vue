@@ -15,10 +15,11 @@ import { api } from '../api'
 import { getRouterPathWithLang } from '../utils'
 
 const message = useMessage()
+const notification = useNotification()
 
 const {
-    toggleDark, isDark, isTelegram,
-    showAuth, adminAuth, auth, loading, openSettings
+    toggleDark, isDark, isTelegram, showAdminPage,
+    showAuth, auth, loading, openSettings, userSettings
 } = useGlobalState()
 const route = useRoute()
 const router = useRouter()
@@ -125,7 +126,9 @@ const menuOptions = computed(() => [
                 type: menuValue.value == "admin" ? "primary" : "default",
                 style: "width: 100%",
                 onClick: async () => {
+                    loading.value = true;
                     await router.push(getRouterPathWithLang('/admin', locale.value));
+                    loading.value = false;
                     showMobileMenu.value = false;
                 }
             },
@@ -134,7 +137,7 @@ const menuOptions = computed(() => [
                 icon: () => h(NIcon, { component: AdminPanelSettingsFilled }),
             }
         ),
-        show: !!adminAuth.value,
+        show: showAdminPage.value,
         key: "admin"
     },
     {
@@ -192,6 +195,7 @@ const menuOptions = computed(() => [
                 icon: () => h(NIcon, { component: GithubAlt })
             }
         ),
+        show: openSettings.value?.showGithub,
         key: "github"
     }
 ]);
@@ -203,8 +207,30 @@ useHead({
     ]
 });
 
+const logoClickCount = ref(0);
+const logoClick = async () => {
+    if (route.path.includes("admin")) {
+        logoClickCount.value = 0;
+        return;
+    }
+    if (logoClickCount.value >= 5) {
+        logoClickCount.value = 0;
+        message.info("Change to admin Page");
+        loading.value = true;
+        await router.push(getRouterPathWithLang('/admin', locale.value));
+        loading.value = false;
+    } else {
+        logoClickCount.value++;
+    }
+    if (logoClickCount.value > 0) {
+        message.info(`Click ${5 - logoClickCount.value + 1} times to enter the admin page`);
+    }
+}
+
 onMounted(async () => {
-    await api.getOpenSettings(message);
+    await api.getOpenSettings(message, notification);
+    // make sure user_id is fetched
+    if (!userSettings.value.user_id) await api.getUserSettings(message);
 });
 </script>
 
@@ -215,7 +241,9 @@ onMounted(async () => {
                 <h3>{{ openSettings.title || t('title') }}</h3>
             </template>
             <template #avatar>
-                <n-avatar style="margin-left: 10px;" src="/logo.png" />
+                <div @click="logoClick">
+                    <n-avatar style="margin-left: 10px;" src="/logo.png" />
+                </div>
             </template>
             <template #extra>
                 <n-space>
@@ -237,7 +265,7 @@ onMounted(async () => {
         <n-modal v-model:show="showAuth" :closable="false" :closeOnEsc="false" :maskClosable="false" preset="dialog"
             :title="t('accessHeader')">
             <p>{{ t('accessTip') }}</p>
-            <n-input v-model:value="auth" type="textarea" :autosize="{ minRows: 3 }" />
+            <n-input v-model:value="auth" type="password" show-password-on="click" />
             <template #action>
                 <n-button :loading="loading" @click="authFunc" type="primary">
                     {{ t('ok') }}

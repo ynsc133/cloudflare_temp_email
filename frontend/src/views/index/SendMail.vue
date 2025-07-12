@@ -13,7 +13,7 @@ const isPreview = ref(false)
 const editorRef = shallowRef()
 
 
-const { settings, sendMailModel, indexTab } = useGlobalState()
+const { settings, sendMailModel, indexTab, userSettings } = useGlobalState()
 
 const { t } = useI18n({
     locale: 'zh',
@@ -136,29 +136,30 @@ const handleCreated = (editor) => {
 }
 
 onMounted(async () => {
+    // make sure user_id is fetched
+    if (!userSettings.value.user_id) await api.getUserSettings(message);
     await api.getSettings();
 })
 </script>
 
 <template>
     <div class="center" v-if="settings.address">
-        <n-card>
+        <n-card :bordered="false" embedded>
             <div v-if="!settings.send_balance || settings.send_balance <= 0">
-                <n-alert type="warning" :show-icon="false">
+                <n-alert type="warning" :show-icon="false" :bordered="false">
                     {{ t('requestAccessTip') }}
                     <n-button type="primary" tertiary @click="requestAccess" size="small">{{ t('requestAccess')
                         }}</n-button>
                 </n-alert>
-                <br />
                 <AdminContact />
             </div>
             <div v-else>
-                <n-alert type="info" :show-icon="false">
+                <n-alert type="info" :show-icon="false" :bordered="false" closable>
                     {{ t('send_balance') }}: {{ settings.send_balance }}
                 </n-alert>
-                <div class="right">
+                <n-flex justify="end">
                     <n-button type="primary" @click="send">{{ t('send') }}</n-button>
-                </div>
+                </n-flex>
                 <div class="left">
                     <n-form :model="sendMailModel">
                         <n-form-item :label="t('fromName')" label-placement="top">
@@ -187,7 +188,7 @@ onMounted(async () => {
                             </n-button>
                         </n-form-item>
                         <n-form-item :label="t('content')" label-placement="top">
-                            <n-card v-if="isPreview">
+                            <n-card :bordered="false" embedded v-if="isPreview">
                                 <div v-html="sendMailModel.content" />
                             </n-card>
                             <div v-else-if="sendMailModel.contentType == 'rich'" style="border: 1px solid #ccc">
@@ -230,9 +231,7 @@ onMounted(async () => {
     justify-content: left;
 }
 
-.right {
-    text-align: right;
-    place-items: right;
-    justify-content: right;
+.n-alert {
+    margin-bottom: 10px;
 }
 </style>

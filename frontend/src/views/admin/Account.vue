@@ -9,8 +9,8 @@ import { NButton, NMenu } from 'naive-ui';
 import { MenuFilled } from '@vicons/material'
 
 const {
-    adminAuth, showAdminAuth, loading,
-    adminTab, adminMailTabAddress, adminSendBoxTabAddress
+    loading, adminTab,
+    adminMailTabAddress, adminSendBoxTabAddress
 } = useGlobalState()
 const message = useMessage()
 
@@ -27,7 +27,7 @@ const { t } = useI18n({
             addressCredentialTip: 'Please copy the Mail Address Credential and you can use it to login to your email account.',
             delete: 'Delete',
             deleteTip: 'Are you sure to delete this email?',
-            delteAccount: 'Delete Account',
+            deleteAccount: 'Delete Account',
             viewMails: 'View Mails',
             viewSendBox: 'View SendBox',
             itemCount: 'itemCount',
@@ -46,7 +46,7 @@ const { t } = useI18n({
             addressCredentialTip: '请复制邮箱地址凭证，你可以使用它登录你的邮箱。',
             delete: '删除',
             deleteTip: '确定要删除这个邮箱吗？',
-            delteAccount: '删除邮箱',
+            deleteAccount: '删除邮箱',
             viewMails: '查看邮件',
             viewSendBox: '查看发件箱',
             itemCount: '总数',
@@ -94,6 +94,7 @@ const deleteEmail = async () => {
 
 const fetchData = async () => {
     try {
+        addressQuery.value = addressQuery.value.trim()
         const { results, count: addressCount } = await api.fetch(
             `/admin/address`
             + `?limit=${pageSize.value}`
@@ -211,7 +212,8 @@ const columns = [
                                             }
                                         },
                                         { default: () => t('viewMails') }
-                                    )
+                                    ),
+                                    show: row.mail_count > 0
                                 },
                                 {
                                     label: () => h(NButton,
@@ -223,7 +225,8 @@ const columns = [
                                             }
                                         },
                                         { default: () => t('viewSendBox') }
-                                    )
+                                    ),
+                                    show: row.send_count > 0
                                 },
                                 {
                                     label: () => h(NButton,
@@ -251,10 +254,6 @@ watch([page, pageSize], async () => {
 })
 
 onMounted(async () => {
-    if (!adminAuth.value) {
-        showAdminAuth.value = true;
-        return;
-    }
     await fetchData()
 })
 </script>
@@ -268,35 +267,38 @@ onMounted(async () => {
             <span>
                 <p>{{ t("addressCredentialTip") }}</p>
             </span>
-            <n-card>
+            <n-card :bordered="false" embedded>
                 <b>{{ curEmailCredential }}</b>
             </n-card>
             <template #action>
             </template>
         </n-modal>
-        <n-modal v-model:show="showDeleteAccount" preset="dialog" :title="t('delteAccount')">
+        <n-modal v-model:show="showDeleteAccount" preset="dialog" :title="t('deleteAccount')">
             <p>{{ t('deleteTip') }}</p>
             <template #action>
                 <n-button :loading="loading" @click="deleteEmail" size="small" tertiary type="error">
-                    {{ t('delteAccount') }}
+                    {{ t('deleteAccount') }}
                 </n-button>
             </template>
         </n-modal>
         <n-input-group>
-            <n-input v-model:value="addressQuery" clearable :placeholder="t('addressQueryTip')" />
+            <n-input v-model:value="addressQuery" clearable :placeholder="t('addressQueryTip')"
+                @keydown.enter="fetchData" />
             <n-button @click="fetchData" type="primary" tertiary>
                 {{ t('query') }}
             </n-button>
         </n-input-group>
-        <div style="display: inline-block;">
-            <n-pagination v-model:page="page" v-model:page-size="pageSize" :item-count="count"
-                :page-sizes="[20, 50, 100]" show-size-picker>
-                <template #prefix="{ itemCount }">
-                    {{ t('itemCount') }}: {{ itemCount }}
-                </template>
-            </n-pagination>
+        <div style="overflow: auto;">
+            <div style="display: inline-block;">
+                <n-pagination v-model:page="page" v-model:page-size="pageSize" :item-count="count"
+                    :page-sizes="[20, 50, 100]" show-size-picker>
+                    <template #prefix="{ itemCount }">
+                        {{ t('itemCount') }}: {{ itemCount }}
+                    </template>
+                </n-pagination>
+            </div>
+            <n-data-table :columns="columns" :data="data" :bordered="false" embedded />
         </div>
-        <n-data-table :columns="columns" :data="data" :bordered="false" />
     </div>
 </template>
 
@@ -304,5 +306,9 @@ onMounted(async () => {
 .n-pagination {
     margin-top: 10px;
     margin-bottom: 10px;
+}
+
+.n-data-table {
+    min-width: 1000px;
 }
 </style>
